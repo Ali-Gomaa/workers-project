@@ -1,0 +1,265 @@
+﻿@model List<Workers.Models.Project>
+
+@{
+    ViewData["Title"] = "المشاريع";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@Html.AntiForgeryToken()
+
+<style>
+    .project-column {
+        min-height: 300px;
+        border: 2px dashed #ccc;
+        padding: 10px;
+        margin: 10px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+    }
+
+    .person-box {
+        background-color: #ffffff;
+        border: 1px solid #ccc;
+        padding: 6px 10px;
+        margin-bottom: 5px;
+        border-radius: 6px;
+        cursor: grab;
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        transition: background 0.3s;
+    }
+
+        .person-box.manager {
+            background-color: #d1e7dd;
+            border-left: 4px solid #198754;
+        }
+
+        .person-box.worker {
+            background-color: #e2e3e5;
+            border-left: 4px solid #6c757d;
+        }
+
+    .project-title {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+</style>
+
+<div class="container-fluid">
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+    <div class="d-flex justify-content-end align-items-center mb-3 gap-2 flex-wrap">
+        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addJobTitleModal">
+            + إضافة مسمى وظيفي
+        </button>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addPersonModal">
+            + إضافة شخص
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProjectModal">
+            + إضافة مشروع
+        </button>
+      
+    </div>
+
+    <div class="row">
+        @foreach (var project in Model)
+        {
+            <div class="col-md-3">
+                <div class="project-column"
+                     ondrop="drop(event)"
+                     ondragover="allowDrop(event)"
+                     data-project-id="@project.Id">
+                    <div class="project-title">@project.Name</div>
+
+                    @foreach (var person in project.People.Where(p => p.IsManager))
+                    {
+                        <div class="person-box manager"
+                             draggable="true"
+                             ondragstart="drag(event)"
+                             data-person-id="@person.Id">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>@person.Name (@person.JobTitle?.Name)</span>
+
+                                <form asp-action="DeletePerson" method="post" onsubmit="return confirm('هل أنت متأكد من الحذف؟');" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@person.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-2" title="حذف">
+                                        🗑️
+                                    </button>
+                                </form>
+                            </div>
+
+                        </div>
+                    }
+
+                    @foreach (var person in project.People.Where(p => !p.IsManager))
+                    {
+                        <div class="person-box worker"
+                             draggable="true"
+                             ondragstart="drag(event)"
+                             data-person-id="@person.Id">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>@person.Name (@person.JobTitle?.Name)</span>
+
+                                <form asp-action="DeletePerson" method="post" onsubmit="return confirm('هل أنت متأكد من الحذف؟');" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@person.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-2" title="حذف">
+                                        🗑️
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+
+<!-- Modal لإضافة شخص جديد -->
+<div class="modal fade" id="addPersonModal" tabindex="-1" aria-labelledby="addPersonModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-controller="Projects" asp-action="AddPerson" method="post" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPersonModalLabel">إضافة شخص جديد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label class="form-label">الاسم</label>
+                    <input type="text" name="name" class="form-control" required />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">المسمى الوظيفي</label>
+                    <select name="jobTitleId" class="form-select">
+                        @foreach (var job in ViewBag.JobTitles as List<JobTitle>)
+                        {
+                            <option value="@job.Id">@job.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">المشروع</label>
+                    <select name="projectId" class="form-select">
+                        @foreach (var project in Model)
+                        {
+                            <option value="@project.Id">@project.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">حفظ</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal لإضافة مشروع جديد -->
+<div class="modal fade" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-controller="Projects" asp-action="AddProject" method="post" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addProjectModalLabel">إضافة مشروع جديد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label for="projectName" class="form-label">اسم المشروع</label>
+                    <input type="text" class="form-control" name="name" id="projectName" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-success">حفظ</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal لإضافة مسمى وظيفي -->
+<div class="modal fade" id="addJobTitleModal" tabindex="-1" aria-labelledby="addJobTitleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-controller="JobTitles" asp-action="Add" method="post" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addJobTitleModalLabel">إضافة مسمى وظيفي</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label for="jobTitleName" class="form-label">اسم المسمى</label>
+                    <input type="text" name="name" id="jobTitleName" class="form-control" required />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-success">إضافة</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<script>
+    function allowDrop(ev) {
+        ev.preventDefault();
+    }
+
+    function drag(ev) {
+        ev.dataTransfer.setData("text", ev.target.dataset.personId);
+    }
+
+    function drop(ev) {
+        ev.preventDefault();
+
+        const personId = ev.dataTransfer.getData("text");
+        const targetProjectId = ev.currentTarget.dataset.projectId;
+
+        const personElem = document.querySelector(`[data-person-id='${personId}']`);
+        const personName = personElem.innerText;
+
+        if (!confirm(`هل تريد نقل "${personName}" إلى هذا المشروع؟`)) {
+            return;
+        }
+
+        fetch('/Projects/MovePerson', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': getAntiForgeryToken()
+            },
+            body: `personId=${personId}&targetProjectId=${targetProjectId}`
+        })
+            .then(response => {
+                if (response.ok) {
+                    // ev.currentTarget.appendChild(personElem);
+                    // showSuccessToast();
+                    location.reload();
+                } else {
+                    alert("حدث خطأ أثناء التحريك.");
+                }
+            });
+    }
+
+    function getAntiForgeryToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]').value;
+    }
+
+    function showSuccessToast() {
+        const toastEl = document.getElementById('moveToast');
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+</script>
